@@ -122,6 +122,11 @@
             <span id="employees">{{ stock_info.employees }}</span>
           </p>
           <p><strong>Sector:</strong> {{ stock_info.sector }}</p>
+
+          <p>
+            <strong>Stock Score (0-10):</strong> {{ stock_info.stock_score }}
+          </p>
+
           <!-- Display Pre-Market Information -->
           {% if pre_market_info %}
           <p>
@@ -243,11 +248,33 @@
             </p>
           </div>
 
-          <!-- Support and Resistance -->
+          <!-- Support and Resistance Levels -->
           <div>
             <h3 class="text-lg font-semibold">Target Price</h3>
-            <p>Resistance: {{ technicals.resistance_level | round(2) }}</p>
-            <p>Support: {{ technicals.support_level | round(2) }}</p>
+            <p>
+              Resistance 1: {{ technicals.support_resistance_levels.resistance_1
+              | round(2) }}
+            </p>
+            <p>
+              Resistance 2: {{ technicals.support_resistance_levels.resistance_2
+              | round(2) }}
+            </p>
+            <p>
+              Resistance 3: {{ technicals.support_resistance_levels.resistance_3
+              | round(2) }}
+            </p>
+            <p>
+              Support 1: {{ technicals.support_resistance_levels.support_1 |
+              round(2) }}
+            </p>
+            <p>
+              Support 2: {{ technicals.support_resistance_levels.support_2 |
+              round(2) }}
+            </p>
+            <p>
+              Support 3: {{ technicals.support_resistance_levels.support_3 |
+              round(2) }}
+            </p>
           </div>
         </div>
 

@@ -65,6 +65,61 @@ def plot_monthly_trend(ticker):
     plt.close()  # Close the plot to avoid overlapping
     return graph_url
 
+def calculate_support_resistance_levels(data):
+    """
+    Calculate multiple support and resistance levels based on pivot points.
+    :param data: DataFrame containing high, low, and close prices of the stock
+    :return: Dictionary with resistance and support levels
+    """
+    high = data['High'].iloc[-1]
+    low = data['Low'].iloc[-1]
+    close = data['Close'].iloc[-1]
+    
+    # Calculate the pivot point (P)
+    pivot = (high + low + close) / 3
+
+    # Resistance Levels
+    resistance_1 = 2 * pivot - low
+    resistance_2 = pivot + (high - low)
+    resistance_3 = high + 2 * (pivot - low)
+
+    # Support Levels
+    support_1 = 2 * pivot - high
+    support_2 = pivot - (high - low)
+    support_3 = low - 2 * (high - pivot)
+
+    return {
+        'resistance_1': resistance_1,
+        'resistance_2': resistance_2,
+        'resistance_3': resistance_3,
+        'support_1': support_1,
+        'support_2': support_2,
+        'support_3': support_3
+    }
+
+def calculate_stock_score(fundamentals, technicals):
+    score = 0
+    
+    # Add Technical factors (30% weight)
+    score += technicals.get('latest_rsi', 0) * 0.05
+    score += technicals.get('latest_macd', 0) * 0.05
+
+ # Moving Average Scoring: 
+    # If the 50-day EMA is above the 200-day EMA (Bullish), we add to the score
+    if technicals.get('latest_ema_50') and technicals.get('latest_ema_200'):
+        if technicals['latest_ema_50'] > technicals['latest_ema_200']:
+            score += 0.05  # Bullish signal for 50-day EMA above 200-day EMA
+        else:
+            score -= 0.05  # Bearish signal for 50-day EMA below 200-day EMA
+
+    # Add Performance factors (10% weight)
+    score += fundamentals['pe_ratio'] * 0.05
+    score += fundamentals['div_yield'] * 0.05
+    score += fundamentals.get('eps_growth', 0) * 0.10
+    score += fundamentals['beta'] * 0.05
+
+    return min(max(score, 0), 10)
+
 # Function to calculate RSI, MACD, and provide recommendation
 def calculate_technical_indicators(ticker):
     stock = yf.Ticker(ticker)
@@ -90,11 +145,7 @@ def calculate_technical_indicators(ticker):
     latest_ema_50 = ema_50.iloc[-1] if ema_50 is not None and not ema_50.empty else None
     latest_ema_200 = ema_200.iloc[-1] if ema_200 is not None and not ema_200.empty else None
 
-    # Support and Resistance calculation
-    pivot = (data['High'].iloc[-1] + data['Low'].iloc[-1] + data['Close'].iloc[-1]) / 3
-    resistance_1 = 2 * pivot - data['Low'].iloc[-1]
-    support_1 = 2 * pivot - data['High'].iloc[-1]
-
+  
     # Provide recommendation based on a scoring system
     score = 0
 
@@ -150,6 +201,8 @@ def calculate_technical_indicators(ticker):
     else:
         recommendation = "Strong Sell"
 
+    support_resistance_levels = calculate_support_resistance_levels(data)
+
     return {
         'latest_rsi': latest_rsi,
         'latest_macd': latest_macd,
@@ -159,8 +212,7 @@ def calculate_technical_indicators(ticker):
         'latest_lower_bb': latest_lower_bb,
         'latest_ema_50': latest_ema_50,
         'latest_ema_200': latest_ema_200,
-        'resistance_level': resistance_1,
-        'support_level': support_1,
+        'support_resistance_levels': support_resistance_levels,
         'recommendation': recommendation,
         'score': score
     }
@@ -261,10 +313,12 @@ def index():
     stock_info = None
     technicals = None
     news = []
+    pre_market_info = None
     graph_realtime_url = None
     graph_monthly_url = None
     rsi_graph = None
-    
+    technicals = None
+    stock_score = None
     if request.method == 'POST':
         # use try catch block to handle errors
         try:
@@ -273,6 +327,21 @@ def index():
             stock = yf.Ticker(ticker)
             info = stock.info
         
+
+         # Fetch financial data (e.g., revenue growth, EPS growth)
+            fundamentals = {
+                'pe_ratio': info.get('forwardPE'),
+                'div_yield': info.get('dividendYield'),
+                'eps_growth': info.get('trailingEps'),
+                'beta': info.get('beta'),
+            }
+
+        # Calculate RSI, MACD, ADX, Bollinger Bands, EMA, and recommendation
+            technicals = calculate_technical_indicators(ticker)
+
+         # Fetch technical indicators
+            stock_score = calculate_stock_score(fundamentals, technicals)
+
             stock_info = {
                 'symbol': ticker,
                 'market_cap': info.get('marketCap'),
@@ -288,15 +357,14 @@ def index():
                 'eps': info.get('trailingEps'),
                 'employees': info.get('fullTimeEmployees'),
                 'sector': info.get('sector'),
-                'description': info.get('longBusinessSummary')
+                'description': info.get('longBusinessSummary'),
+                'stock_score': stock_score
 
             }
             # Fetch News related to the stock
             news = fetch_news(ticker)
 
-            # Calculate RSI, MACD, ADX, Bollinger Bands, EMA, and recommendation
-            technicals = calculate_technical_indicators(ticker)
-
+        
             # Generate real-time and monthly trendline graphs
             graph_realtime_url = plot_realtime(ticker)
             graph_monthly_url = plot_monthly_trend(ticker)
