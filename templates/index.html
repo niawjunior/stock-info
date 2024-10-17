@@ -122,6 +122,19 @@
             <span id="employees">{{ stock_info.employees }}</span>
           </p>
           <p><strong>Sector:</strong> {{ stock_info.sector }}</p>
+          <!-- Display Pre-Market Information -->
+          {% if pre_market_info %}
+          <p>
+            <strong>Pre-Market Price:</strong> {{
+            pre_market_info.pre_market_price }}
+          </p>
+          <p>
+            <strong>Change:</strong> {{ pre_market_info.price_change }} ({{
+            pre_market_info.percentage_change }})
+          </p>
+          {% else %}
+          <p>Pre-market data not available.</p>
+          {% endif %}
         </div>
       </div>
       <!-- Company Description -->

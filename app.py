@@ -7,6 +7,7 @@ import base64
 import pandas_ta as ta
 import matplotlib
 import requests
+from bs4 import BeautifulSoup
 NEWS_API_KEY = '8bfe91331abd470fb6fadb46ab8321c2'
 
 # Set matplotlib to use 'Agg' backend to avoid GUI errors on macOS
@@ -226,6 +227,35 @@ def fetch_news(ticker):
         print(f"Error fetching news: {str(e)}")
         return []
 
+def scrape_pre_market_price(ticker):
+    url = f'https://finance.yahoo.com/quote/{ticker}'
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
+    
+    try:
+        response = requests.get(url, headers=headers)
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Locate the pre-market price
+        pre_market_element = soup.select_one('fin-streamer[data-field="preMarketPrice"] span')
+        pre_market_price = pre_market_element.text if pre_market_element else None
+
+        # Locate the price change
+        price_change_element = soup.select_one('fin-streamer[data-field="preMarketChange"] span')
+        price_change = price_change_element.text if price_change_element else None
+
+        # Locate the percentage change
+        percentage_change_element = soup.select_one('fin-streamer[data-field="preMarketChangePercent"] span')
+        percentage_change = percentage_change_element.text if percentage_change_element else None
+
+        return {
+            'pre_market_price': pre_market_price,
+            'price_change': price_change,
+            'percentage_change': percentage_change
+        }
+    except Exception as e:
+        print(f"Error fetching pre-market data: {str(e)}")
+        return None
+    
 @app.route('/', methods=['GET', 'POST'])
 def index():
     stock_info = None
@@ -239,6 +269,7 @@ def index():
         # use try catch block to handle errors
         try:
             ticker = request.form['ticker']
+            pre_market_info = scrape_pre_market_price(ticker)
             stock = yf.Ticker(ticker)
             info = stock.info
         
@@ -273,7 +304,7 @@ def index():
         except Exception as e:
             return render_template('index.html')
 
-    return render_template('index.html', news=news, rsi_graph=rsi_graph, stock_info=stock_info, technicals=technicals, graph_realtime_url=graph_realtime_url, graph_monthly_url=graph_monthly_url)
+    return render_template('index.html', pre_market_info=pre_market_info, news=news, rsi_graph=rsi_graph, stock_info=stock_info, technicals=technicals, graph_realtime_url=graph_realtime_url, graph_monthly_url=graph_monthly_url)
 
 
 
